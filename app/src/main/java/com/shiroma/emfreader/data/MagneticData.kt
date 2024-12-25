@@ -19,6 +19,10 @@ interface MagneticDataDao {
 
     @Query("SELECT * FROM magnetic_data ORDER BY timestamp ASC")
     suspend fun getAll(): List<MagneticData>
+
+    @Query("DELETE FROM magnetic_data")
+    suspend fun deleteAll()
+
 }
 
 @Database(entities = [MagneticData::class], version = 1)

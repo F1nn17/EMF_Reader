@@ -8,6 +8,8 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
 import android.widget.Button
 import com.github.mikephil.charting.components.XAxis
@@ -33,7 +35,7 @@ import androidx.lifecycle.lifecycleScope
 import com.github.mikephil.charting.formatter.IValueFormatter
 import com.shiroma.emfreader.data.MagneticData
 
-class MainActivity : ComponentActivity(){
+class MainActivity : ComponentActivity() {
     private lateinit var sensorManager: SensorManager
     private var magneticSensor: Sensor? = null
     private lateinit var chart: LineChart
@@ -114,7 +116,7 @@ class MainActivity : ComponentActivity(){
         }
         mainLayout.addView(chart)
 
-        if(dataPoints.isEmpty()){
+        if (dataPoints.isEmpty()) {
             dataPoints.add(Entry(0f, 0f))
         }
         // Настраиваем график
@@ -142,6 +144,14 @@ class MainActivity : ComponentActivity(){
             }
         }
         mainLayout.addView(viewSavedDataButton)
+        val openSettingsButton = Button(this).apply {
+            text = "Настройки"
+            setOnClickListener {
+                val intent = Intent(this@MainActivity, SettingsActivity::class.java)
+                startActivity(intent)
+            }
+        }
+        mainLayout.addView(openSettingsButton)
         setContentView(mainLayout)
 
 
@@ -173,6 +183,16 @@ class MainActivity : ComponentActivity(){
                                                 event.values[2].pow(2)
                                     )
 
+                                    // Получаем верхний предел из SharedPreferences
+                                    val sharedPreferences = getSharedPreferences("AppSettings", Context.MODE_PRIVATE)
+                                    val upperLimit = sharedPreferences.getFloat("upper_limit", 100f) // Дефолтный предел
+
+                                    // Проверяем верхний предел
+                                    if (magnitude > upperLimit) {
+                                        val toneGenerator = ToneGenerator(AudioManager.STREAM_MUSIC, 10)
+                                        toneGenerator.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 500)
+                                    }
+
                                     lifecycleScope.launch(Dispatchers.IO) {
                                         saveDataToDatabase(timestamp, magnitude, event.values)
                                         updateGraph(timestamp, magnitude)
@@ -196,7 +216,7 @@ class MainActivity : ComponentActivity(){
     // Обновление графика
     @SuppressLint("DefaultLocale")
     private fun updateGraph(timestamp: Long, magnitude: Float) {
-        val roundedMagnitude = String.format("%.2f", magnitude).replace(',','.').toFloat()
+        val roundedMagnitude = String.format("%.2f", magnitude).replace(',', '.').toFloat()
         val timeInSeconds = (timestamp - timestampStart) / 1000f
 
         // Удаляем старейшие точки, если их больше maxPoints
@@ -235,12 +255,25 @@ class MainActivity : ComponentActivity(){
     private suspend fun loadSavedDataToGraph() {
         val savedData = withContext(Dispatchers.IO) { magneticDataDao.getAll() }
         if (savedData.isNotEmpty()) {
+            val currentTime = System.currentTimeMillis()
             dataPoints.clear()
-            savedData.forEach { data ->
-                val timeInSeconds = (data.timestamp - timestampStart) / 1000f
-                val roundedMagnitude = String.format("%.2f", data.magnitude).replace(',','.').toFloat()
-                dataPoints.add(Entry(timeInSeconds, roundedMagnitude))
+            // Проверяем разрыв времени с последней сохранённой точкой
+            val lastDataPoint = savedData.last()
+            val timeDifference = currentTime - lastDataPoint.timestamp
+            // Если разрыв более 5 минут
+            if (timeDifference > 5 * 60 * 1000) {
+                val timeInSeconds = (currentTime - timestampStart) / 1000f
+                dataPoints.add(Entry(timeInSeconds, 0F))
+            } else {
+                // Берём последние 7 точек
+                val last7Data = savedData.takeLast(maxPoints)
+                last7Data.forEach { data ->
+                    val timeInSeconds = (data.timestamp - timestampStart) / 1000f
+                    val roundedMagnitude = String.format("%.2f", data.magnitude).replace(',', '.').toFloat()
+                    dataPoints.add(Entry(timeInSeconds, roundedMagnitude))
+                }
             }
+
             runOnUiThread {
                 val lineDataSet = LineDataSet(dataPoints, "Магнитное поле (мкТл)").apply {
                     color = Color.BLUE
@@ -253,4 +286,5 @@ class MainActivity : ComponentActivity(){
             }
         }
     }
+
 }

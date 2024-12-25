@@ -1,6 +1,8 @@
 package com.shiroma.emfreader
 
 import android.os.Bundle
+import android.view.Gravity
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -40,6 +42,8 @@ class SavedDataActivity: ComponentActivity() {
 
         val savedDataTextView = TextView(this).apply {
             textSize = 16f
+            textAlignment = View.TEXT_ALIGNMENT_CENTER
+            gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
