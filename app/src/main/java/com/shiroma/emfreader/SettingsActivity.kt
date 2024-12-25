@@ -48,7 +48,7 @@ class SettingsActivity : ComponentActivity() {
             setPadding(16)
         }
 
-        // Кнопка очистки базы данных
+        // Кнопка очистки базы данных и графика
         val clearDatabaseButton = Button(this).apply {
             text = "Очистить базу данных и график"
             setOnClickListener {
@@ -63,7 +63,20 @@ class SettingsActivity : ComponentActivity() {
             }
         }
 
-        layout.addView(clearDatabaseButton)
+
+
+        // Кнопка очистки базы данных
+        val clearGraphics = Button(this).apply {
+            text = "Очистить график"
+            setOnClickListener {
+                lifecycleScope.launch {
+                    // Очищаем график в MainActivity
+                    MainActivity.clearGraph()
+                    Toast.makeText(this@SettingsActivity, "График очищен", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
 
         // Поле ввода верхнего предела
         upperLimitField = EditText(this).apply {
@@ -92,7 +105,8 @@ class SettingsActivity : ComponentActivity() {
             }
         }
         layout.addView(saveLimitButton)
-
+        layout.addView(clearGraphics)
+        layout.addView(clearDatabaseButton)
 
         setContentView(layout)
     }
